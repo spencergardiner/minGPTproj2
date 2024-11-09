@@ -58,6 +58,15 @@ class Trainer:
         for callback in self.callbacks.get(onevent, []):
             callback(self)
 
+    def save_checkpoint(self, save_path='checkpoint.pt'):
+        # save the model
+        torch.save({
+            'model_state_dict': self.model.state_dict(),
+            'optimizer_state_dict': self.optimizer.state_dict(),
+            'iter_num': self.iter_num,
+            'config': self.config,
+        }, save_path)
+
     def run(self):
         model, config = self.model, self.config
 
@@ -78,6 +87,7 @@ class Trainer:
         self.iter_num = 0
         self.iter_time = time.time()
         data_iter = iter(train_loader)
+        losses = []
         while True:
 
             # fetch the next batch (x, y) and re-init iterator if needed
@@ -103,7 +113,21 @@ class Trainer:
             tnow = time.time()
             self.iter_dt = tnow - self.iter_time
             self.iter_time = tnow
+            
+            # save checkpoint
+            if self.iter_num % 1000 == 0:
+                save_path = f'/home/ssgardin/nobackup/autodelete/proj2_674/minGPTproj2/projects/proj2/checkpoints_2/checkpoint_{self.iter_num}.pt'
+                self.save_checkpoint(save_path)
+                
+                with open('/home/ssgardin/nobackup/autodelete/proj2_674/minGPTproj2/projects/proj2/losses_2.txt', 'w') as f:
+                    for loss in losses:
+                        f.write(f'{loss}\n')
 
             # termination conditions
             if config.max_iters is not None and self.iter_num >= config.max_iters:
                 break
+            
+            if self.iter_num % 100 == 0 or self.iter_num < 150:
+                msg = f"iter {self.iter_num}: train loss {self.loss.item():.5f}"
+                print(msg)
+                losses.append(self.loss.item())
